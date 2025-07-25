@@ -15,25 +15,20 @@ target_headers = [
 
 
 def merge_xlsx_by_headers(source_path, target_path):
-    # Загружаем оба файла
     source_wb = openpyxl.load_workbook(source_path)
     target_wb = openpyxl.load_workbook(target_path)
 
-    # Берем первые листы (можно указать конкретные)
     source_sheet = source_wb.active
     target_sheet = target_wb.active
 
-    # Собираем заголовки из целевого файла (предполагаем, что они в первой строке)
     target_headers = []
     for cell in target_sheet[1]:
         target_headers.append(cell.value)
 
-    # Собираем заголовки из исходного файла
     source_headers = []
     for cell in source_sheet[1]:
         source_headers.append(cell.value)
 
-    # Создаем маппинг: {столбец_в_целевом: столбец_в_исходном или None}
     column_mapping = {}
     for idx, header in enumerate(target_headers, 1):
         if header in source_headers:
@@ -42,21 +37,15 @@ def merge_xlsx_by_headers(source_path, target_path):
         else:
             column_mapping[idx] = None  # Если столбца нет в исходном файле
 
-    # Находим последнюю заполненную строку в целевом файле
     last_target_row = target_sheet.max_row
 
-    # Копируем данные из исходного файла в целевой
     for source_row in range(2, source_sheet.max_row + 1):  # Начинаем со 2 строки (пропускаем заголовки)
         last_target_row += 1
         for target_col, source_col in column_mapping.items():
             if source_col is not None:
-                # Берем значение из исходного файла
                 cell_value = source_sheet.cell(row=source_row, column=source_col).value
-                # Записываем в целевой файл
                 target_sheet.cell(row=last_target_row, column=target_col, value=cell_value)
-            # Если столбца нет — ячейка останется пустой
 
-    # Сохраняем результат
     target_wb.save(target_path)
     print(f"Данные успешно объединены в файл: {target_path}")
 
