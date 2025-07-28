@@ -73,6 +73,12 @@ def parse_xls_xlsx_get_data(file_path, data_to_get):
 
 def save_to_excel(data_df, output_file="результат.xlsx"):
     try:
+        # Добавляем новый столбец с очищенным номером
+        if 'А' in data_df.columns:
+            # Создаем новый столбец, удаляя '@' и '-' из значений столбца 'А'
+            data_df.insert(1, '(номер без @ и без -)',
+                           data_df['А'].astype(str).str.replace('[@-]', '', regex=True))
+
         with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
             data_df.to_excel(
                 writer,
@@ -140,6 +146,7 @@ def find_and_extract_tables(file_path):
                         data_df[to_add[0][3]] = to_add[0][2]
 
                 all_tables.append(data_df)
+
             except Exception as e:
                 print(f"Ошибка при обработке таблицы (строки {start}-{end}): {e}")
 
@@ -161,7 +168,10 @@ if __name__ == "__main__":
         target_path = os.path.join(new_path, "all_data_file.xlsx")
 
     if not os.path.exists(target_path):
-        pd.DataFrame(columns=target_headers).to_excel(target_path, index=False)
+        # Создаем DataFrame с нужными колонками, включая новую колонку
+        initial_columns = target_headers.copy()
+        initial_columns.insert(1, '(номер без @ и без -)')
+        pd.DataFrame(columns=initial_columns).to_excel(target_path, index=False)
 
     for file in excel_files:
         tables = find_and_extract_tables(file)
