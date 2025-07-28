@@ -5,10 +5,17 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 
 data_to_parse = [
-    ['Документ об отгрузке', '(5а)'],
     ['Продавец:', '(2)'],
     ['ИНН/КПП продавца:', '(2б)'],
+    ['Документ об отгрузке', '(5а)'],
 ]
+
+data_to_parse_no_index = [
+    ['Продавец', '(2)'],
+    ['ИНН/КПП продавца', '(2б)'],
+    ['Документ об отгрузке:', '(5а)'],
+]
+
 target_headers = [
     "А", "1", "1а", "1б", "2", "2а", "3", "4", "5", "6", "7", "8", "9", "10", "10а", "11", "12", "12а", "13", "14", "(5а)", "(2)", "(2б)"
 ]
@@ -64,7 +71,8 @@ def parse_xls_xlsx_get_data(file_path, data_to_get):
     found_rows = []
     for index, row in df.iterrows():
         row_str = '|'.join(row.astype(str)).lower()
-        if (data_to_get[0].lower() in row_str) and (data_to_get[1] in row_str):
+
+        if data_to_get[0].lower() in row_str:
             non_empty_cells = [file_path] + [cell for cell in row if str(cell).strip() not in ('', 'nan')]
             found_rows.append(non_empty_cells)
 
@@ -140,10 +148,18 @@ def find_and_extract_tables(file_path):
 
                 data_df = data_df.dropna(how='all')
 
-                for data_set in data_to_parse:
-                    to_add = parse_xls_xlsx_get_data(file_path, data_set)
-                    if to_add:
+                for i in range(len(data_to_parse)):
+                    to_add = parse_xls_xlsx_get_data(file_path, data_to_parse[i])
+                    if to_add and len(to_add[0]) >= 4:
                         data_df[to_add[0][3]] = to_add[0][2]
+                    else:
+                        to_add1 = parse_xls_xlsx_get_data(file_path, data_to_parse_no_index[i])
+                        if 'тот' in to_add1[0][2]:
+                            'Счет-фактура  № ЦБ-3616 от 21 июля 2025 г.'
+                            to_add2 = parse_xls_xlsx_get_data(file_path, 'Счет-фактура')
+                            data_df[data_to_parse_no_index[i][1]] = to_add2[0][2]
+                        else:
+                            data_df[data_to_parse_no_index[i][1]] = to_add1[0][2]
 
                 all_tables.append(data_df)
 
