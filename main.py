@@ -1,8 +1,28 @@
 import os
 import pandas as pd
 from glob import glob
-import openpyxl
 from openpyxl.utils import get_column_letter
+import openpyxl
+import xlwt
+from openpyxl import load_workbook
+
+
+def convert_xlsx_to_xls(xlsx_file, xls_file):
+    wb_xlsx = load_workbook(filename=xlsx_file)
+
+    wb_xls = xlwt.Workbook()
+
+    for sheet_name in wb_xlsx.sheetnames:
+        ws_xlsx = wb_xlsx[sheet_name]
+        ws_xls = wb_xls.add_sheet(sheet_name)
+
+        for row in ws_xlsx.iter_rows():
+            for cell in row:
+                ws_xls.write(cell.row - 1, cell.column - 1, cell.value)
+
+    wb_xls.save(xls_file)
+    print(f"Файл успешно сконвертирован и сохранен как {xls_file}")
+
 
 data_to_parse = [
     ['Продавец:', '(2)'],
@@ -201,6 +221,8 @@ if __name__ == "__main__":
 
     print("Обработка всех файлов завершена!")
 
+    convert_xlsx_to_xls(target_path, target_path[:-1])
+
 """
 Linux and Mac:
 Terminal
@@ -213,3 +235,4 @@ pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlwt
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pandas
 """
+
