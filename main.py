@@ -26,6 +26,8 @@ def convert_xlsx_to_xls(xlsx_file, xls_file):
                 to_write = cell.value
                 if ' ' in str(to_write).strip() and is_valid_string(cell.value):
                     to_write = float(cell.value.replace(' ', ''))
+                if cell.column == 16 and cell.value == '--':
+                    to_write = 'РОССИЯ'
                 ws_xls.write(cell.row - 1, cell.column - 1, to_write)
 
     wb_xls.save(xls_file)
