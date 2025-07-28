@@ -204,11 +204,12 @@ if __name__ == "__main__":
 """
 Linux and Mac:
 Terminal
-pip install openpyxl xlrd pandas 
+pip install openpyxl xlrd xlwt pandas
 
 Windows:
 CMD
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null openpyxl
-pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlrd  
-pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pandas 
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlrd
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlwt
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pandas
 """
