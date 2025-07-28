@@ -5,6 +5,11 @@ from openpyxl.utils import get_column_letter
 import openpyxl
 import xlwt
 from openpyxl import load_workbook
+import re
+
+def is_valid_string(s):
+    # Проверяем, что строка состоит только из цифр (0-9), точек (.) и пробелов (\s)
+    return bool(re.fullmatch(r'^[\d.\s]+$', s))
 
 
 def convert_xlsx_to_xls(xlsx_file, xls_file):
@@ -18,7 +23,10 @@ def convert_xlsx_to_xls(xlsx_file, xls_file):
 
         for row in ws_xlsx.iter_rows():
             for cell in row:
-                ws_xls.write(cell.row - 1, cell.column - 1, cell.value)
+                to_write = cell.value
+                if ' ' in str(to_write).strip() and is_valid_string(cell.value):
+                    to_write = float(cell.value.replace(' ', ''))
+                ws_xls.write(cell.row - 1, cell.column - 1, to_write)
 
     wb_xls.save(xls_file)
     print(f"Файл успешно сконвертирован и сохранен как {xls_file}")
