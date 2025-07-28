@@ -202,6 +202,12 @@ if __name__ == "__main__":
     print("Обработка всех файлов завершена!")
 
 """
+Linux and Mac:
+Terminal
+pip install openpyxl xlrd pandas 
+
+Windows:
+CMD
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null openpyxl
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlrd  
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pandas 
