@@ -32,14 +32,14 @@ def merge_xlsx_by_headers(source_path, target_path):
     column_mapping = {}
     for idx, header in enumerate(target_headers, 1):
         if header in source_headers:
-            source_col = source_headers.index(header) + 1  # +1 т.к. индексы с 1
+            source_col = source_headers.index(header) + 1
             column_mapping[idx] = source_col
         else:
-            column_mapping[idx] = None  # Если столбца нет в исходном файле
+            column_mapping[idx] = None
 
     last_target_row = target_sheet.max_row
 
-    for source_row in range(2, source_sheet.max_row + 1):  # Начинаем со 2 строки (пропускаем заголовки)
+    for source_row in range(2, source_sheet.max_row + 1):
         last_target_row += 1
         for target_col, source_col in column_mapping.items():
             if source_col is not None:
@@ -61,11 +61,9 @@ def parse_xls_xlsx_get_data(file_path, data_to_get):
         print(f"Ошибка при чтении файла: {e}")
         return
 
-    # print(df.iloc[4].to_string())
-
     found_rows = []
     for index, row in df.iterrows():
-        row_str = '|'.join(row.astype(str)).lower()  # объединить строку
+        row_str = '|'.join(row.astype(str)).lower()
         if (data_to_get[0].lower() in row_str) and (data_to_get[1] in row_str):
             non_empty_cells = [file_path] + [cell for cell in row if str(cell).strip() not in ('', 'nan')]
             found_rows.append(non_empty_cells)
@@ -78,8 +76,8 @@ def save_to_excel(data_df, output_file="результат.xlsx"):
         with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
             data_df.to_excel(
                 writer,
-                index=False,  # Не записывать индексы строк
-                sheet_name='Данные',  # Название листа
+                index=False,
+                sheet_name='Данные',
             )
             worksheet = writer.sheets['Данные']
             for column in worksheet.columns:
@@ -92,63 +90,90 @@ def save_to_excel(data_df, output_file="результат.xlsx"):
         print(f"❌ Ошибка при сохранении: {e}")
 
 
-def find_and_extract_table(file_path):
-
-    print(file_path)
+def find_and_extract_tables(file_path):
+    print(f"Обработка файла: {file_path}")
 
     if file_path.lower().endswith('.xls'):
-        df = pd.read_excel(file_path, header=None, engine='xlrd')
+        df_list = [pd.read_excel(file_path, header=None, engine='xlrd')]
     elif file_path.lower().endswith('xlsx'):
-        df = pd.read_excel(file_path, header=None, engine='openpyxl')
+        # Для xlsx читаем все листы
+        xls = pd.ExcelFile(file_path, engine='openpyxl')
+        df_list = [pd.read_excel(xls, sheet_name=sheet, header=None)
+                   for sheet in xls.sheet_names]
 
-    for row_idx in range(len(df)):
-        row_values = [str(cell) for cell in df.iloc[row_idx].values if pd.notna(cell)]
+    all_tables = []
 
-        if all(header in row_values for header in target_headers[:6]):
-            data_df = pd.read_excel(
-                file_path,
-                header=row_idx,
-                usecols=lambda x: str(x) in target_headers
-            )
+    for df in df_list:
+        df = df.fillna('')
+        tables_in_sheet = []
+        current_table_start = None
 
-            data_df = data_df.dropna(how='all')
+        for row_idx in range(len(df)):
+            row_values = [str(cell) for cell in df.iloc[row_idx].values if str(cell).strip() not in ('', 'nan')]
 
-            first_empty_row = None
-            for i in range(len(data_df)):
-                if pd.isna(data_df.iloc[i, 0]):  # Проверяем первую ячейку строки
-                    first_empty_row = i
-                    break
+            if all(header in row_values for header in target_headers[:6]):
+                if current_table_start is not None:
+                    tables_in_sheet.append((current_table_start, row_idx - 1))
+                current_table_start = row_idx
+            elif current_table_start is not None and len(row_values) == 0:
+                tables_in_sheet.append((current_table_start, row_idx - 1))
+                current_table_start = None
 
-            if first_empty_row is not None:
-                data_df = data_df.iloc[:first_empty_row]
+        if current_table_start is not None:
+            tables_in_sheet.append((current_table_start, len(df) - 1))
 
-            for data_set in data_to_parse:
-                to_add = parse_xls_xlsx_get_data(file_path, data_set)
+        for start, end in tables_in_sheet:
+            try:
+                data_df = pd.read_excel(
+                    file_path,
+                    header=start,
+                    usecols=lambda x: str(x) in target_headers,
+                    nrows=end - start,
+                    engine='openpyxl' if file_path.lower().endswith('xlsx') else 'xlrd'
+                )
 
-                data_df[to_add[0][3]] = to_add[0][2]
+                data_df = data_df.dropna(how='all')
 
-            return data_df
+                for data_set in data_to_parse:
+                    to_add = parse_xls_xlsx_get_data(file_path, data_set)
+                    if to_add:
+                        data_df[to_add[0][3]] = to_add[0][2]
+
+                all_tables.append(data_df)
+            except Exception as e:
+                print(f"Ошибка при обработке таблицы (строки {start}-{end}): {e}")
+
+    return all_tables
 
 
 if __name__ == "__main__":
-
     folder_path = "upd"
     target_path = "all_data_file.xlsx"
     temp_file = "temp_data_file.xlsx"
 
     excel_files = glob(os.path.join(folder_path, "*.xls*"))
 
-    new_path = input(f'введите путь к папке с файлами XLSX и XLS (стандартно - это папка "{folder_path}"): ')
+    new_path = input(f'Введите путь к папке с файлами XLSX и XLS (стандартно - это папка "{folder_path}"): ')
     if new_path:
         folder_path = new_path
-    new_path = input("введите путь к папке с файлом all_data_file.xlsx (стандартно - это текущая папка): ")
+    new_path = input("Введите путь к файлу all_data_file.xlsx (стандартно - это текущая папка): ")
     if new_path:
-        target_path = new_path
+        target_path = os.path.join(new_path, "all_data_file.xlsx")
+
+    if not os.path.exists(target_path):
+        pd.DataFrame(columns=target_headers).to_excel(target_path, index=False)
 
     for file in excel_files:
-        result_df = find_and_extract_table(file)
-        save_to_excel(result_df, temp_file)
-        merge_xlsx_by_headers(temp_file, target_path)
+        tables = find_and_extract_tables(file)
+        for i, table in enumerate(tables, 1):
+            print(f"Обработка таблицы {i} из файла {file}")
+            save_to_excel(table, temp_file)
+            merge_xlsx_by_headers(temp_file, target_path)
+
+    if os.path.exists(temp_file):
+        os.remove(temp_file)
+
+    print("Обработка всех файлов завершена!")
 
 """
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null openpyxl
