@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 from glob import glob
 from openpyxl.utils import get_column_letter
 import openpyxl
@@ -22,16 +23,37 @@ def convert_xlsx_to_xls(xlsx_file, xls_file):
         ws_xls = wb_xls.add_sheet(sheet_name)
 
         for row in ws_xlsx.iter_rows():
-            for cell in row:
-                to_write = cell.value
-                if ' ' in str(to_write).strip() and is_valid_string(cell.value):
-                    to_write = float(cell.value.replace(' ', ''))
-                if cell.column == 16 and cell.value == '--':
-                    to_write = 'РОССИЯ'
-                ws_xls.write(cell.row - 1, cell.column - 1, to_write)
+            if row[3].value:
+                for cell in row:
+                    to_write = cell.value
+                    if type(to_write) == "str":
+                        to_write = to_write.strip()
+                    if ' ' in str(to_write).strip() and is_valid_string(cell.value):
+                        to_write = float(cell.value.replace(' ', ''))
+                    if cell.column == 16 and cell.value == '--':
+                        to_write = 'РОССИЯ'
+                    ws_xls.write(cell.row - 1, cell.column - 1, to_write)
 
     wb_xls.save(xls_file)
     print(f"Файл успешно сконвертирован и сохранен как {xls_file}")
+
+
+def convert_xlsx_to_csv(xlsx_file, csv_file):
+    try:
+        # Чтение XLSX файла
+        df = pd.read_excel(xlsx_file)
+
+        for i in range(len(df)):
+            if np.isnan(df[4][i]):
+                print(df.iloc[i])
+
+        # Сохранение в CSV
+        df.to_csv(csv_file, index=False, encoding='utf-8')
+
+        print(f"Файл успешно конвертирован: {csv_file}")
+    except Exception as e:
+        print(f"Произошла ошибка: {e}")
+
 
 
 data_to_parse = [
@@ -116,6 +138,7 @@ def save_to_excel(data_df, output_file="результат.xlsx"):
             # Создаем новый столбец, удаляя '@' и '-' из значений столбца 'А'
             data_df.insert(1, '(номер без @ и без -)',
                            data_df['А'].astype(str).str.replace('[@-]', '', regex=True))
+
 
         with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
             data_df.to_excel(
@@ -203,6 +226,7 @@ if __name__ == "__main__":
     folder_path = "upd"
     target_path = "all_data_file.xlsx"
     temp_file = "temp_data_file.xlsx"
+    csv_file = "all_data_file.csv"
 
     excel_files = glob(os.path.join(folder_path, "*.xls*"))
 
@@ -232,6 +256,8 @@ if __name__ == "__main__":
     print("Обработка всех файлов завершена!")
 
     convert_xlsx_to_xls(target_path, target_path[:-1])
+    convert_xlsx_to_xls(target_path, target_path[:-1])
+    convert_xlsx_to_csv(target_path, csv_file)
 
 """
 Linux and Mac:
@@ -245,4 +271,6 @@ pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlwt
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pandas
 """
+
+
 
