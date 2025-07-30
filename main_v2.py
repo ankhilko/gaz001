@@ -126,6 +126,73 @@ def merge_csv_preserve_headers(
     return result
 
 
+def merge_csv_files(
+    file_1_path: str,
+    file_2_path: str,
+    output_path: str = None,
+    key_column_1: str = "(номер без @ и без -)",
+    key_column_2: str = "Номер без разделителей",
+    columns_to_add: list = [
+        "Клиент",
+        "Поставщик",
+        "Бренд",
+        "Номер",
+        "Описание",
+        "Тип оплаты",
+        "Кол.",
+        "Цена продажи",
+        "Вес",
+        "Адрес доставки",
+        "Создал",
+    ],
+) -> None:
+    """
+    Добавляет в file_1.csv новые столбцы из file_2.csv по совпадению ключей.
+
+    Параметры:
+        file_1_path (str): Путь к основному CSV-файлу, который нужно дополнить.
+        file_2_path (str): Путь к CSV-файлу с дополнительными данными.
+        output_path (str, optional): Куда сохранить результат. Если None, перезаписывает file_1.csv.
+        key_column_1 (str): Название ключевого столбца в file_1.csv.
+        key_column_2 (str): Название ключевого столбца в file_2.csv.
+        columns_to_add (list): Список столбцов для добавления из file_2.csv.
+    """
+    # Загружаем оба файла
+    df1 = pd.read_csv(file_1_path)
+    df2 = pd.read_csv(file_2_path)
+
+    # Проверяем, что ключевые столбцы существуют
+    if key_column_1 not in df1.columns:
+        raise ValueError(f"Столбец '{key_column_1}' не найден в {file_1_path}")
+    if key_column_2 not in df2.columns:
+        raise ValueError(f"Столбец '{key_column_2}' не найден в {file_2_path}")
+
+    # Проверяем, что запрашиваемые столбцы есть в file_2
+    missing_columns = [col for col in columns_to_add if col not in df2.columns]
+    if missing_columns:
+        raise ValueError(f"Столбцы {missing_columns} не найдены в {file_2_path}")
+
+    # Выбираем только нужные столбцы из file_2
+    df2_selected = df2[[key_column_2] + columns_to_add]
+
+    # Объединяем данные
+    merged_df = df1.merge(
+        df2_selected,
+        how="left",
+        left_on=key_column_1,
+        right_on=key_column_2,
+    )
+
+    # Удаляем временный ключевой столбец из file_2 (если он отличается)
+    if key_column_1 != key_column_2:
+        merged_df.drop(columns=[key_column_2], inplace=True)
+
+    # Сохраняем результат
+    output_path = output_path or file_1_path
+    merged_df.to_csv(output_path, index=False, encoding="utf-8")
+    print(f"Файл успешно сохранён: {output_path}")
+
+
 def merge_csv_by_headers(source_path, target_path):
     try:
         # Чтение данных
@@ -322,7 +389,7 @@ def xlsx_to_csv(xlsx_file_path, csv_file_path=None, sheet_name=0, delimiter=',')
     # Если путь для CSV не указан, создаём его из пути XLSX
     if csv_file_path is None:
         if xlsx_file_path.lower().endswith('.xlsx'):
-            csv_file_path = xlsx_file_path[:-5] + '.csv'
+            csv_file_path = xlsx_file_path[:-4] + 'csv'
         else:
             csv_file_path = xlsx_file_path + '.csv'
 
@@ -332,25 +399,51 @@ def xlsx_to_csv(xlsx_file_path, csv_file_path=None, sheet_name=0, delimiter=',')
     return csv_file_path
 
 
+def xls_to_csv(xls_file_path, csv_file_path=None, sheet_name=0, delimiter=','):
+    """
+    Устойчивая конвертация XLS/XLSX в CSV с автоматическим выбором движка.
+    """
+    try:
+        # Пробуем openpyxl для XLSX
+        df = pd.read_excel(xls_file_path, sheet_name=sheet_name, engine='openpyxl')
+    except:
+        try:
+            # Пробуем xlrd для старых XLS
+            df = pd.read_excel(xls_file_path, sheet_name=sheet_name, engine='xlrd')
+        except Exception as e:
+            raise ValueError(f"Не удалось прочитать файл: {str(e)}")
+
+    if csv_file_path is None:
+        csv_file_path = xls_file_path.rsplit('.', 1)[0] + '.csv'
+
+    df.to_csv(csv_file_path, index=False, sep=delimiter)
+    return csv_file_path
+
+
 if __name__ == "__main__":
     folder_path = "upd"
-    folder_path_2 = "report_abcp"
-    folder_path_3 = "tnved/справочниктнвэд.xlsx"
+    folder_report_abcp_xls = "report_abcp/report_20250730_114138.xls"
+    folder_report_abcp = "report_abcp"
+    report_abcp_xls = glob(os.path.join(folder_report_abcp, "*.xls"))[0]
+    folder_report_abcp_csv = xls_to_csv(report_abcp_xls)
+    folder_spravochnik_tnved_xlsx = "tnved/справочниктнвэд.xlsx"
+    folder_spravochnik_tnved_csv = xlsx_to_csv(folder_spravochnik_tnved_xlsx)
     target_path_as_csv = "all_data_file.csv"
     temp_file = "temp_data_file.csv"
     csv_file = "all_data_file.csv"
 
     excel_files = glob(os.path.join(folder_path, "*.xls*"))
 
+
     new_path = input(f'Введите путь к папке с UPD-файлами в XLS/XLSX (стандартно - это папка "{folder_path}"): ')
     if new_path:
         folder_path = new_path
-    new_path = input(f'Введите путь к папке с файлами ABCP (стандартно - это папка "{folder_path_2}"): ')
+    new_path = input(f'Введите путь к папке с файлами ABCP (стандартно - это папка "{report_abcp_xls}"): ')
     if new_path:
-        folder_path_2 = new_path
-    new_path = input(f'Введите путь к справочнику ТН ВЭД (стандартно - это текущая папка и файл "{folder_path_3}"): ')
+        report_abcp_xls = new_path
+    new_path = input(f'Введите путь к справочнику ТН ВЭД (стандартно - это текущая папка и файл "{folder_spravochnik_tnved_xlsx}"): ')
     if new_path:
-        folder_path_3 = new_path
+        folder_spravochnik_tnved_xlsx = new_path
     new_path = input("Введите путь к файлу all_data_file.csv (стандартно - это текущая папка): ")
     if new_path:
         target_path_as_csv = os.path.join(new_path, "all_data_file.csv")
@@ -369,10 +462,11 @@ if __name__ == "__main__":
     if os.path.exists(temp_file):
         os.remove(temp_file)
 
-    xlsx_to_csv(folder_path_3)
-
-    merge_csv_preserve_headers(target_path_as_csv, folder_path_3[:-4] + 'csv', target_path_as_csv)
+    merge_csv_preserve_headers(target_path_as_csv, folder_spravochnik_tnved_csv, target_path_as_csv)
     replace_missing_country(target_path_as_csv, "10а", "РОССИЯ")
+
+    merge_csv_files(target_path_as_csv, folder_report_abcp_csv)
+
     csv_to_xlsx(target_path_as_csv)
 
     print("Обработка всех файлов завершена!")
@@ -380,7 +474,7 @@ if __name__ == "__main__":
 """
 Linux and Mac:
 Terminal
-pip install openpyxl xlrd xlwt pandas
+pip install openpyxl xlrd xlwt pandas pyxlsb
 
 Windows:
 CMD
@@ -388,4 +482,5 @@ pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlrd
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlwt
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pandas
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pyxlsb
 """
