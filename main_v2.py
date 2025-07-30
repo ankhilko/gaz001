@@ -33,6 +33,99 @@ COLUMN_ORDER = [
 ]
 
 
+def merge_csv_preserve_headers(
+        csv1_path: str,
+        csv2_path: str,
+        output_path: str = None,
+        csv1_key_col: int = 1,  # Ключ во 2-м столбце (индекс 1)
+        csv1_target_col: int = 4,  # Целевой столбец в 1-м файле (5-й столбец, индекс 4)
+        csv2_key_col: int = 0,  # Ключ в 1-м столбце (индекс 0)
+        csv2_value_col: int = 5,  # Значение в 6-м столбце (индекс 5)
+        keep_unmatched: bool = True,
+        case_sensitive: bool = False,
+        strip_spaces: bool = True
+) -> pd.DataFrame:
+    """
+    Заменяет данные в 5-м столбце первого CSV на значения из 6-го столбца второго CSV,
+    сохраняя заголовки (первую строку) неизменными.
+
+    Параметры:
+    -----------
+    csv1_path : str
+        Путь к основному CSV (данные будут изменены)
+    csv2_path : str
+        Путь к CSV с данными для подстановки
+    output_path : str, optional
+        Если указан, сохраняет результат в CSV
+    csv1_key_col : int, optional (default=1)
+        Столбец с ключом в первом файле (индекс)
+    csv1_target_col : int, optional (default=4)
+        Столбец для замены в первом файле (5-й столбец, индекс 4)
+    csv2_key_col : int, optional (default=0)
+        Столбец с ключом во втором файле (индекс)
+    csv2_value_col : int, optional (default=5)
+        Столбец с данными во втором файле (6-й столбец, индекс 5)
+    keep_unmatched : bool, optional (default=True)
+        Сохранять строки без совпадений?
+    case_sensitive : bool, optional (default=False)
+        Учитывать регистр?
+    strip_spaces : bool, optional (default=True)
+        Удалять пробелы в ключах?
+
+    Возвращает:
+    -----------
+    pd.DataFrame
+        Результат объединения с сохранёнными заголовками
+    """
+
+    # Загрузка данных с сохранением заголовков
+    df1 = pd.read_csv(csv1_path, header=0)  # Первая строка - заголовок
+    df2 = pd.read_csv(csv2_path, header=0)  # Первая строка - заголовок
+
+    # Сохраняем заголовки
+    headers1 = df1.columns.tolist()
+    headers2 = df2.columns.tolist()
+
+    # Функция обработки ключей
+    def process_key(key):
+        key = str(key) if pd.notna(key) else ""
+        if strip_spaces:
+            key = key.strip()
+        if not case_sensitive:
+            key = key.lower()
+        return key
+
+    # Создаем словарь для подстановки {ключ: значение}
+    value_dict = {
+        process_key(k): v
+        for k, v in zip(
+            df2.iloc[:, csv2_key_col],
+            df2.iloc[:, csv2_value_col]
+        )
+        if pd.notna(k)
+    }
+
+    # Копируем DataFrame для безопасности
+    result = df1.copy()
+
+    # Заменяем значения в целевом столбце (кроме заголовка)
+    result.iloc[0:, csv1_target_col] = (
+        result.iloc[0:, csv1_key_col]
+        .apply(process_key)
+        .map(value_dict)
+    )
+
+    # Удаляем строки без совпадений (если нужно, кроме заголовка)
+    if not keep_unmatched:
+        result = result.dropna(subset=[result.columns[csv1_target_col]])
+
+    # Сохранение с заголовками (если указан путь)
+    if output_path:
+        result.to_csv(output_path, index=False)
+
+    return result
+
+
 def merge_csv_by_headers(source_path, target_path):
     try:
         # Чтение данных
@@ -90,12 +183,18 @@ def parse_xls_xlsx_get_data(file_path, data_to_get):
     return found_rows
 
 
+def replace_missing_country(csv_file_path, column_name, new_value):
+    df = pd.read_csv(csv_file_path)
+    df[column_name] = df[column_name].replace('--', new_value)
+    df.to_csv(csv_file_path, index=False, encoding='utf-8')
+
+
 def save_to_csv(data_df, output_file="результат.csv"):
     try:
         # Добавляем новый столбец
         if 'А' in data_df.columns:
             data_df.insert(1, clean_number,
-                           data_df['А'].astype(str).str.replace('[@-]', '', regex=True))
+                           data_df['А'].astype(str).str.replace('[@-]', '', regex=True).str.strip())
 
         # Приводим к нужному порядку столбцов
         data_df = data_df.reindex(columns=COLUMN_ORDER)
@@ -175,11 +274,69 @@ def find_and_extract_tables(file_path):
     return all_tables
 
 
+def csv_to_xlsx(csv_file_path, xlsx_file_path=None):
+    """
+    Конвертирует CSV-файл в XLSX-файл.
+
+    Параметры:
+    - csv_file_path: str - путь к исходному CSV-файлу
+    - xlsx_file_path: str (опциональный) - путь для сохранения XLSX-файла.
+      Если не указан, будет использовано то же имя файла, что у CSV, но с расширением .xlsx
+
+    Возвращает:
+    - str - путь к сохранённому XLSX-файлу
+    """
+    # Читаем CSV-файл
+    df = pd.read_csv(csv_file_path)
+
+    # Если путь для XLSX не указан, создаём его из пути CSV
+    if xlsx_file_path is None:
+        if csv_file_path.lower().endswith('.csv'):
+            xlsx_file_path = csv_file_path[:-4] + '.xlsx'
+        else:
+            xlsx_file_path = csv_file_path + '.xlsx'
+
+    # Сохраняем в XLSX
+    df.to_excel(xlsx_file_path, index=False, engine='openpyxl')
+
+    return xlsx_file_path
+
+
+def xlsx_to_csv(xlsx_file_path, csv_file_path=None, sheet_name=0, delimiter=','):
+    """
+    Конвертирует XLSX-файл в CSV.
+
+    Параметры:
+    - xlsx_file_path: str - путь к исходному XLSX-файлу.
+    - csv_file_path: str (опциональный) - путь для сохранения CSV.
+      Если не указан, будет использовано то же имя, что у XLSX, но с расширением .csv.
+    - sheet_name: str/int (опциональный) - имя или номер листа в XLSX (по умолчанию первый лист).
+    - delimiter: str (опциональный) - разделитель для CSV (по умолчанию ',').
+
+    Возвращает:
+    - str - путь к сохранённому CSV-файлу.
+    """
+    # Читаем XLSX-файл
+    df = pd.read_excel(xlsx_file_path, sheet_name=sheet_name)
+
+    # Если путь для CSV не указан, создаём его из пути XLSX
+    if csv_file_path is None:
+        if xlsx_file_path.lower().endswith('.xlsx'):
+            csv_file_path = xlsx_file_path[:-5] + '.csv'
+        else:
+            csv_file_path = xlsx_file_path + '.csv'
+
+    # Сохраняем в CSV
+    df.to_csv(csv_file_path, index=False, sep=delimiter)
+
+    return csv_file_path
+
+
 if __name__ == "__main__":
     folder_path = "upd"
     folder_path_2 = "report_abcp"
-    folder_path_3 = "справочниктнвэд.xlsx"
-    target_path = "all_data_file.csv"
+    folder_path_3 = "tnved/справочниктнвэд.xlsx"
+    target_path_as_csv = "all_data_file.csv"
     temp_file = "temp_data_file.csv"
     csv_file = "all_data_file.csv"
 
@@ -196,47 +353,39 @@ if __name__ == "__main__":
         folder_path_3 = new_path
     new_path = input("Введите путь к файлу all_data_file.csv (стандартно - это текущая папка): ")
     if new_path:
-        target_path = os.path.join(new_path, "all_data_file.csv")
+        target_path_as_csv = os.path.join(new_path, "all_data_file.csv")
 
-    if not os.path.exists(target_path):
+    if not os.path.exists(target_path_as_csv):
         # Создаем DataFrame с нужными колонками, включая новую колонку
-        pd.DataFrame(columns=COLUMN_ORDER).to_csv(target_path, index=False, encoding='utf-8-sig')
+        pd.DataFrame(columns=COLUMN_ORDER).to_csv(target_path_as_csv, index=False, encoding='utf-8-sig')
 
     for file in excel_files:
         tables = find_and_extract_tables(file)
         for i, table in enumerate(tables, 1):
             print(f"Обработка таблицы {i} из файла {file}")
             save_to_csv(table, temp_file)
-            merge_csv_by_headers(temp_file, target_path)
+            merge_csv_by_headers(temp_file, target_path_as_csv)
 
     if os.path.exists(temp_file):
         os.remove(temp_file)
 
+    xlsx_to_csv(folder_path_3)
+
+    merge_csv_preserve_headers(target_path_as_csv, folder_path_3[:-4] + 'csv', target_path_as_csv)
+    replace_missing_country(target_path_as_csv, "10а", "РОССИЯ")
+    csv_to_xlsx(target_path_as_csv)
+
     print("Обработка всех файлов завершена!")
 
+"""
+Linux and Mac:
+Terminal
+pip install openpyxl xlrd xlwt pandas
 
-import pandas as pd
-
-
-def merge_dataframes(dp1: pd.DataFrame, dp2: pd.DataFrame) -> pd.DataFrame:
-    """
-    Объединяет dp1 и dp2 по первому столбцу, подставляя значения из 6-го столбца dp2
-
-    Параметры:
-    dp1 - исходный DataFrame (ключ в первом столбце)
-    dp2 - DataFrame из которого берутся значения (ключ в первом столбце, данные в 6-м)
-
-    Возвращает:
-    Новый DataFrame с добавленными данными из dp2
-    """
-    # Копируем исходный dataframe, чтобы не изменять оригинал
-    result = dp1.copy()
-
-    # Создаем словарь из dp2: ключ - первый столбец, значение - шестой столбец
-    value_dict = pd.Series(dp2.iloc[:, 5].values, index=dp2.iloc[:, 0]).to_dict()
-
-    # Создаем новый столбец в result с значениями из словаря по ключу
-    # Используем map для сопоставления значений
-    result['new_column'] = result.iloc[:, 0].map(value_dict)
-
-    return result
+Windows:
+CMD
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null openpyxl
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlrd
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlwt
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pandas
+"""
