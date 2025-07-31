@@ -527,7 +527,3 @@ pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pandas
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pyxlsb
 """
-
-"""
-8	9	10			13	14
-"""
