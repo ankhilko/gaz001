@@ -4,7 +4,7 @@ from openpyxl.styles import PatternFill, Font
 from openpyxl.utils.dataframe import dataframe_to_rows
 
 
-def merge_and_color_excel_files(file1_path, file2_path, column_one, column_two, output_path):
+def merge_and_color_excel_files(file1_path, file2_path, column_one, column_two, output_path, col_mark):
     # Загрузка данных из файлов
     if file1_path.lower().endswith('.xls'):
         df1 = [pd.read_excel(file1_path, engine='xlrd')]
@@ -22,7 +22,7 @@ def merge_and_color_excel_files(file1_path, file2_path, column_one, column_two, 
     new_rows = df2[non_empty_mask].copy()
 
     # Добавляем метку для строк из файла2
-    new_rows['_source'] = 'file2'
+    new_rows['_source'] = col_mark
 
     # Объединяем данные
     merged_df = pd.concat([df1, new_rows], ignore_index=True)
@@ -50,7 +50,7 @@ def merge_and_color_excel_files(file1_path, file2_path, column_one, column_two, 
 
     # Применяем форматирование
     for row_idx in range(2, ws.max_row + 1):
-        is_from_file2 = ws.cell(row=row_idx, column=source_col_idx).value == 'file2'
+        is_from_file2 = ws.cell(row=row_idx, column=source_col_idx).value == col_mark
         cell_value = str(ws.cell(row=row_idx, column=col_two_idx).value)
 
         if cell_value in new_values:
@@ -78,6 +78,7 @@ if __name__ == "__main__":
         file2_path=file2_path,
         column_one="Поставщик",
         column_two="(номер без @ и без -)",
-        output_path="result.xlsx"
+        output_path="result.xlsx",
+        col_mark=file2_path
     )
 
