@@ -465,7 +465,8 @@ if __name__ == "__main__":
     folder_report_abcp = "report_abcp_alts"
     report_abcp_xls = glob(os.path.join(folder_report_abcp, "*.xls"))[0]
     folder_report_abcp_csv = xls_to_csv(report_abcp_xls)
-    folder_spravochnik_tnved_xlsx = "tnved/справочниктнвэд.xlsx"
+    folder_spravochnik_tnved = "tnved"
+    folder_spravochnik_tnved_xlsx = glob(os.path.join(folder_spravochnik_tnved, "*.xls"))[0]
     folder_spravochnik_tnved_csv = xlsx_to_csv(folder_spravochnik_tnved_xlsx)
     target_path_as_csv = "main_alts.csv"
     temp_file = "temp_data_file.csv"
