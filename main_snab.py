@@ -210,19 +210,21 @@ def clean_and_convert_to_float(df, columns):
 
     for col in columns:
         if col in new_df.columns:
-            # Удаляем лишние пробелы и преобразуем в float
-            new_df[col] = (
-                new_df[col]
-                .astype(str)  # Преобразуем в строку на случай, если это другой тип
-                .str.strip()  # Удаляем пробелы в начале и конце
-                .str.replace(' ',
-                             '')  # Удаляем все пробелы (если нужно оставить десятичные пробелы, измените эту строку)
-                .replace('', pd.NA)  # Пустые строки заменяем на NA
-                .astype('float64')  # Преобразуем в float
-            )
+            try:
+                # Удаляем лишние пробелы и преобразуем в float
+                new_df[col] = (
+                    new_df[col]
+                    .astype(str)  # Преобразуем в строку на случай, если это другой тип
+                    .str.strip()  # Удаляем пробелы в начале и конце
+                    .str.replace(' ',
+                                 '')  # Удаляем все пробелы (если нужно оставить десятичные пробелы, измените эту строку)
+                    .replace('', pd.NA)  # Пустые строки заменяем на NA
+                    .astype('float64')  # Преобразуем в float
+                )
+            except Exception as e:
+                raise print(f"Предупреждение: ячейка '{col}' содержит нечисловое значение")
         else:
             print(f"Предупреждение: Колонка '{col}' не найдена в DataFrame")
-
     return new_df
 
 

@@ -210,19 +210,21 @@ def clean_and_convert_to_float(df, columns):
 
     for col in columns:
         if col in new_df.columns:
-            # Удаляем лишние пробелы и преобразуем в float
-            new_df[col] = (
-                new_df[col]
-                .astype(str)  # Преобразуем в строку на случай, если это другой тип
-                .str.strip()  # Удаляем пробелы в начале и конце
-                .str.replace(' ',
-                             '')  # Удаляем все пробелы (если нужно оставить десятичные пробелы, измените эту строку)
-                .replace('', pd.NA)  # Пустые строки заменяем на NA
-                .astype('float64')  # Преобразуем в float
-            )
+            try:
+                # Удаляем лишние пробелы и преобразуем в float
+                new_df[col] = (
+                    new_df[col]
+                    .astype(str)  # Преобразуем в строку на случай, если это другой тип
+                    .str.strip()  # Удаляем пробелы в начале и конце
+                    .str.replace(' ',
+                                 '')  # Удаляем все пробелы (если нужно оставить десятичные пробелы, измените эту строку)
+                    .replace('', pd.NA)  # Пустые строки заменяем на NA
+                    .astype('float64')  # Преобразуем в float
+                )
+            except Exception as e:
+                raise print(f"Предупреждение: ячейка '{col}' содержит нечисловое значение")
         else:
             print(f"Предупреждение: Колонка '{col}' не найдена в DataFrame")
-
     return new_df
 
 
@@ -466,7 +468,8 @@ if __name__ == "__main__":
     report_abcp_xls = glob(os.path.join(folder_report_abcp, "*.xls"))[0]
     folder_report_abcp_csv = xls_to_csv(report_abcp_xls)
     folder_spravochnik_tnved = "tnved"
-    folder_spravochnik_tnved_xlsx = glob(os.path.join(folder_spravochnik_tnved, "*.xls"))[0]
+    folder_spravochnik_tnved_xlsx = glob(os.path.join(folder_spravochnik_tnved, "*.xlsx"))[0]
+    print(folder_spravochnik_tnved_xlsx)
     folder_spravochnik_tnved_csv = xlsx_to_csv(folder_spravochnik_tnved_xlsx)
     target_path_as_csv = "main_alts.csv"
     temp_file = "temp_data_file.csv"
