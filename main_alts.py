@@ -9,19 +9,19 @@ def is_valid_string(s):
     return bool(re.fullmatch(r'^[\d.\s]+$', s))
 
 
-data_to_parse = [
+DATA_TO_PARSE = [
     ['Продавец:', '(2)'],
     ['ИНН/КПП продавца:', '(2б)'],
     ['Документ об отгрузке', '(5а)'],
 ]
 
-data_to_parse_no_index = [
+DATA_TO_PARSE_NO_INDEX = [
     ['Продавец', '(2)'],
     ['ИНН/КПП продавца', '(2б)'],
     ['Документ об отгрузке:', '(5а)'],
 ]
 
-target_headers = [
+TARGET_HEADERS = [
     "А", "1", "1а", "1б", "2", "2а", "3", "4", "5", "6", "7", "8", "9", "10", "10а", "11", "12", "12а", "13", "14",
     "(5а)", "(2)", "(2б)"
 ]
@@ -250,7 +250,7 @@ def parse_xls_xlsx_get_data(file_path, data_to_get):
 
 def replace_missing_country(csv_file_path, column_name, new_value):
     df = pd.read_csv(csv_file_path)
-    df[column_name] = df[column_name].replace('--', new_value).replace('-', new_value)
+    df[column_name] = df[column_name].replace('----', new_value).replace('--', new_value).replace('-', new_value)
     df.to_csv(csv_file_path, index=False, encoding='utf-8')
 
 
@@ -322,7 +322,7 @@ def find_and_extract_tables(file_path):
             row_values = [str(cell) for cell in df.iloc[row_idx].values if str(cell).strip() not in ('', 'nan')]
 
             # Проверяем, содержит ли строка все целевые заголовки
-            if all(header in row_values for header in target_headers[:6]):
+            if all(header in row_values for header in TARGET_HEADERS[:6]):
                 if current_table_start is not None:
                     # Если уже была начата таблица, сохраняем предыдущую
                     tables_in_sheet.append((current_table_start, row_idx - 1))
@@ -343,7 +343,7 @@ def find_and_extract_tables(file_path):
                 data_df = pd.read_excel(
                     file_path,
                     header=start,  # Используем строку с заголовками как заголовки DF
-                    usecols=lambda x: str(x) in target_headers,  # Фильтруем только нужные колонки
+                    usecols=lambda x: str(x) in TARGET_HEADERS,  # Фильтруем только нужные колонки
                     nrows=end - start,  # Ограничиваем количество строк
                     engine='openpyxl' if file_path.lower().endswith('xlsx') else 'xlrd',
                     dtype='object',
@@ -357,19 +357,19 @@ def find_and_extract_tables(file_path):
                 data_df = data_df.dropna(how='all')  # Удаляем полностью пустые строки
 
                 # Добавление дополнительных данных из файла
-                for i in range(len(data_to_parse)):
-                    to_add = parse_xls_xlsx_get_data(file_path, data_to_parse[i])
+                for i in range(len(DATA_TO_PARSE)):
+                    to_add = parse_xls_xlsx_get_data(file_path, DATA_TO_PARSE[i])
                     if to_add and len(to_add[0]) >= 4:
                         data_df[to_add[0][3]] = to_add[0][2]  # Добавляем данные в DF
                     else:
                         # Альтернативный поиск данных, если первый вариант не сработал
-                        to_add1 = parse_xls_xlsx_get_data(file_path, data_to_parse_no_index[i])
+                        to_add1 = parse_xls_xlsx_get_data(file_path, DATA_TO_PARSE_NO_INDEX[i])
                         if 'тот' in to_add1[0][2]:
                             # Особый случай для определенного ключевого слова
                             to_add2 = parse_xls_xlsx_get_data(file_path, 'Счет-фактура')
-                            data_df[data_to_parse_no_index[i][1]] = to_add2[0][2]
+                            data_df[DATA_TO_PARSE_NO_INDEX[i][1]] = to_add2[0][2]
                         else:
-                            data_df[data_to_parse_no_index[i][1]] = to_add1[0][2]
+                            data_df[DATA_TO_PARSE_NO_INDEX[i][1]] = to_add1[0][2]
 
                 all_tables.append(data_df)  # Добавляем обработанную таблицу в результат
 
@@ -461,30 +461,16 @@ def xls_to_csv(xls_file_path, csv_file_path=None, sheet_name=0, delimiter=','):
 
 
 if __name__ == "__main__":
-    folder_path = "upd"
-    folder_report_abcp = "report_abcp"
+    folder_path = "upd_alts"
+    folder_report_abcp = "report_abcp_alts"
     report_abcp_xls = glob(os.path.join(folder_report_abcp, "*.xls"))[0]
     folder_report_abcp_csv = xls_to_csv(report_abcp_xls)
     folder_spravochnik_tnved_xlsx = "tnved/справочниктнвэд.xlsx"
     folder_spravochnik_tnved_csv = xlsx_to_csv(folder_spravochnik_tnved_xlsx)
-    target_path_as_csv = "all_data_file.csv"
+    target_path_as_csv = "main_alts.csv"
     temp_file = "temp_data_file.csv"
-    csv_file = "all_data_file.csv"
 
     excel_files = glob(os.path.join(folder_path, "*.xls*"))
-
-    # new_path = input(f'Введите путь к папке с UPD-файлами в XLS/XLSX (стандартно - это папка "{folder_path}"): ')
-    # if new_path:
-    #     folder_path = new_path
-    # new_path = input(f'Введите путь к папке с файлами ABCP (стандартно - это папка "{report_abcp_xls}"): ')
-    # if new_path:
-    #     report_abcp_xls = new_path
-    # new_path = input(f'Введите путь к справочнику ТН ВЭД (стандартно - это текущая папка и файл "{folder_spravochnik_tnved_xlsx}"): ')
-    # if new_path:
-    #     folder_spravochnik_tnved_xlsx = new_path
-    # new_path = input("Введите путь к файлу all_data_file.csv (стандартно - это текущая папка): ")
-    # if new_path:
-    #     target_path_as_csv = os.path.join(new_path, "all_data_file.csv")
 
     if not os.path.exists(target_path_as_csv):
         # Создаем DataFrame с нужными колонками, включая новую колонку
@@ -511,23 +497,8 @@ if __name__ == "__main__":
 
     if os.path.exists(temp_file):
         os.remove(temp_file)
+        os.remove(folder_report_abcp_csv)
+        os.remove(folder_spravochnik_tnved_csv)
+        os.remove(target_path_as_csv)
 
     print("Обработка всех файлов завершена!")
-
-"""
-Linux and Mac:
-Terminal
-pip install openpyxl xlrd xlwt pandas pyxlsb
-
-Windows:
-CMD
-pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null openpyxl
-pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlrd
-pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null xlwt
-pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pandas
-pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --cert /dev/null pyxlsb
-"""
-
-"""
-8	9	10			13	14
-"""
