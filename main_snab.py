@@ -222,7 +222,7 @@ def clean_and_convert_to_float(df, columns):
                     .astype('float64')  # Преобразуем в float
                 )
             except Exception as e:
-                raise print(f"Предупреждение: ячейка '{col}' содержит нечисловое значение")
+                print(f"Предупреждение: ячейка '{col}' содержит нечисловое значение")
         else:
             print(f"Предупреждение: Колонка '{col}' не найдена в DataFrame")
     return new_df
