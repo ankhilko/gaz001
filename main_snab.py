@@ -223,6 +223,7 @@ def clean_and_convert_to_float(df, columns):
                 )
             except Exception as e:
                 print(f"Предупреждение: ячейка '{col}' содержит нечисловое значение")
+                continue
         else:
             print(f"Предупреждение: Колонка '{col}' не найдена в DataFrame")
     return new_df
@@ -468,7 +469,7 @@ if __name__ == "__main__":
     report_abcp_xls = glob(os.path.join(folder_report_abcp, "*.xls"))[0]
     folder_report_abcp_csv = xls_to_csv(report_abcp_xls)
     folder_spravochnik_tnved = "tnved"
-    folder_spravochnik_tnved_xlsx = glob(os.path.join(folder_spravochnik_tnved, "*.xls"))[0]
+    folder_spravochnik_tnved_xlsx = glob(os.path.join(folder_spravochnik_tnved, "*.xlsx"))[0]
     folder_spravochnik_tnved_csv = xlsx_to_csv(folder_spravochnik_tnved_xlsx)
     target_path_as_csv = "main_snab.csv"
     temp_file = "temp_data_file.csv"
